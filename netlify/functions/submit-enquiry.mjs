@@ -9,9 +9,13 @@ export default async (request) => {
     const body = await request.json().catch(() => ({}));
     const name = String(body.name || "").trim();
     const phone = String(body.phone || "");
+    const panLast4 = String(body.panLast4 || "");
+    const consentId = String(body.consentId || "");
     const portfolio = Number(body.portfolio);
     const amount = Number(body.amount);
-    if (name.length < 2 || name.length > 80 || !phonePattern.test(phone)) throw Object.assign(new Error("Enter valid applicant details."), { status: 400 });
+    if (name.length < 2 || name.length > 80 || !phonePattern.test(phone) || !/^\d{3}[A-Z]$/.test(panLast4) || !consentId || consentId.length > 100) {
+      throw Object.assign(new Error("Enter valid applicant details."), { status: 400 });
+    }
     if (!Number.isFinite(portfolio) || !Number.isFinite(amount) || portfolio < 50000 || amount < 25000 || amount > portfolio * 0.5) {
       throw Object.assign(new Error("Enter a valid portfolio and loan amount."), { status: 400 });
     }
@@ -21,6 +25,8 @@ export default async (request) => {
       "form-name": "loan-enquiry",
       name,
       phone,
+      panLast4,
+      consentId,
       portfolio: String(portfolio),
       amount: String(amount),
       verified: "true"

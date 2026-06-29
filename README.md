@@ -1,54 +1,75 @@
-# Mutual-Fund
+# FolioCredit
 
-A mobile web app for verified loan-against-mutual-funds enquiries. It collects user-entered details, verifies Indian mobile numbers with Twilio Verify, calculates an indicative estimate, and submits verified enquiries through Netlify Forms.
+FolioCredit is a mobile-first loan-against-mutual-funds onboarding application. It verifies an Indian mobile number, starts a consented Account Aggregator journey, retrieves a mutual-fund current-value summary, calculates an indicative eligibility amount, and records a verified callback request.
 
-## Features
+## Customer Journey
 
-- User-entered name, mobile, portfolio value, and desired amount
-- Real SMS OTP through Twilio Verify and Netlify Functions
-- Indicative eligibility calculation using a conservative 50% estimate
-- Netlify Forms submission after successful mobile verification
-- Clear disclosures that an estimate is not a sanction or loan offer
+1. Enter PAN and approve account-discovery consent.
+2. Enter full name, registered mobile number, and desired loan amount.
+3. Verify the mobile number with an OTP.
+4. Approve one-time mutual-fund data sharing through Setu Account Aggregator.
+5. Retrieve the current-value summary and calculate an indicative 50% ceiling.
+6. Submit a verified callback request.
 
-This app does not perform KYC, fetch holdings, approve credit, create a lien, or disburse funds. Those capabilities require regulated providers and lender APIs.
+PAN alone never reveals holdings. The Account Aggregator discovers accounts using PAN and the registered mobile number, then shares data only after the customer approves its consent screen. The callback form stores only the PAN suffix, not the full PAN.
 
-## Run Locally
+## Production Boundaries
 
-Use the bundled Node runtime in this Codex workspace:
+This repository implements onboarding, consent, portfolio retrieval, and an indicative estimate. It does not sanction a loan, determine scheme-level haircuts, perform complete KYC or credit underwriting, create or enforce a lien, execute loan documents, collect repayments, or disburse funds. Those functions require contracts and APIs from a regulated bank or NBFC and the relevant RTA/depository ecosystem.
 
-```bash
-/Users/apple/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin/node server.mjs
-```
+`FolioCredit` is a provisional product name. Complete trademark, company-name, and domain clearance before launch.
 
-Then open:
+## Required Services
 
-```text
-http://127.0.0.1:4173
-```
+### Twilio Verify
 
-## Check
-
-```bash
-/Users/apple/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin/node --check app.js
-/Users/apple/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin/node --check server.mjs
-```
-
-## Deploy to Netlify
-
-Create a Twilio Verify Service and set these environment variables in Netlify:
+Create a Verify Service and configure:
 
 ```text
 TWILIO_VERIFY_SERVICE_SID
 TWILIO_API_KEY
 TWILIO_API_SECRET
-APP_SIGNING_SECRET
 ```
 
-Then connect the repository in Netlify or deploy the static files and functions with Netlify CLI:
+### Setu Account Aggregator
+
+Create an FIU product in Setu Bridge, enable `MUTUAL_FUNDS` with `PROFILE` and `SUMMARY`, configure the production callback/webhook, and set:
+
+```text
+SETU_ENV=sandbox
+SETU_CLIENT_ID
+SETU_CLIENT_SECRET
+SETU_PRODUCT_INSTANCE_ID
+```
+
+Change `SETU_ENV` to `production` only after Setu FIU onboarding and production approval.
+
+### Application
+
+Configure:
+
+```text
+APP_SIGNING_SECRET
+APP_BASE_URL=https://your-domain.example
+```
+
+`APP_SIGNING_SECRET` must be a random value of at least 32 characters. Never place credentials in browser code or commit them to Git.
+
+## Local Checks
 
 ```bash
-npm run build
+node --check app.js
+node build.mjs
+```
+
+For the complete serverless flow, use Netlify Dev so Functions and environment variables are available.
+
+## Netlify
+
+The repository includes `netlify.toml`. Connect the GitHub repository to Netlify or deploy with:
+
+```bash
 netlify deploy --prod --dir=dist --functions=netlify/functions
 ```
 
-Dragging only `index.html`, `styles.css`, and `app.js` into Netlify Drop will not deploy the OTP functions. Keep all Twilio credentials in Netlify environment variables, never in browser code or this repository.
+After changing environment variables, trigger a new production deployment.

@@ -6,6 +6,6 @@
   "scripts": {
     "build": "node build.mjs",
     "start": "node server.mjs",
-    "check": "node --check app.js && node --check server.mjs && node --check netlify/functions/send-otp.mjs && node --check netlify/functions/verify-otp.mjs && node --check netlify/functions/submit-enquiry.mjs && node --check netlify/functions/_shared/twilio-verify.mjs && node --check netlify/functions/_shared/verification-token.mjs"
+    "check": "node --check app.js && node --check server.mjs && node --check netlify/functions/send-otp.mjs && node --check netlify/functions/verify-otp.mjs && node --check netlify/functions/start-portfolio-consent.mjs && node --check netlify/functions/fetch-portfolio.mjs && node --check netlify/functions/submit-enquiry.mjs && node --check netlify/functions/_shared/twilio-verify.mjs && node --check netlify/functions/_shared/verification-token.mjs && node --check netlify/functions/_shared/setu.mjs"
   }
 }

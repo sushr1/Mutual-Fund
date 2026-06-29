@@ -19,7 +19,7 @@ async function key() {
 }
 
 export async function createVerificationToken(phone) {
-  const payload = base64url(JSON.stringify({ phone, expires: Date.now() + 10 * 60 * 1000 }));
+  const payload = base64url(JSON.stringify({ phone, expires: Date.now() + 30 * 60 * 1000 }));
   const signature = await crypto.subtle.sign("HMAC", await key(), new TextEncoder().encode(payload));
   return `${payload}.${base64url(signature)}`;
 }

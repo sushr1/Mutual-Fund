@@ -1,24 +1,35 @@
-const state = {
+const defaultState = {
   screen: "welcome",
+  pan: "",
+  panConsent: false,
   name: "",
   mobile: "",
-  portfolio: 500000,
-  amount: 200000,
-  consent: false,
+  amount: 0,
+  contactConsent: false,
+  portfolioConsent: false,
   otp: "",
   verificationToken: "",
+  consentId: "",
+  sessionId: "",
+  portfolio: 0,
+  holdings: [],
   loading: false,
-  error: ""
+  error: "",
+  notice: ""
 };
 
+const state = { ...defaultState };
+const panPattern = /^[A-Z]{5}[0-9]{4}[A-Z]$/;
+const mobilePattern = /^[6-9]\d{9}$/;
 const inr = (value) => `₹${Math.round(value).toLocaleString("en-IN")}`;
 const phone = () => `+91${state.mobile}`;
 const estimate = () => Math.round(state.portfolio * 0.5);
+const welcomeValid = () => panPattern.test(state.pan) && state.panConsent;
 const detailsValid = () => state.name.trim().length >= 2
-  && /^[6-9]\d{9}$/.test(state.mobile)
-  && state.portfolio >= 50000
+  && mobilePattern.test(state.mobile)
   && state.amount >= 25000
-  && state.consent;
+  && state.contactConsent
+  && state.portfolioConsent;
 const escapeHtml = (value) => String(value).replace(/[&<>'"]/g, (character) => ({
   "&": "&amp;",
   "<": "&lt;",
@@ -26,6 +37,7 @@ const escapeHtml = (value) => String(value).replace(/[&<>'"]/g, (character) => (
   "'": "&#39;",
   '"': "&quot;"
 })[character]);
+const maskedPan = () => `${state.pan.slice(0, 2)}••••${state.pan.slice(-4)}`;
 
 function setState(patch, shouldRender = true) {
   Object.assign(state, patch);
@@ -33,50 +45,51 @@ function setState(patch, shouldRender = true) {
 }
 
 function go(screen) {
-  setState({ screen, error: "" });
+  setState({ screen, error: "", notice: "" });
 }
 
 function shell(content) {
   return `<section class="phone"><div class="screen">${content}</div></section>`;
 }
 
-const back = (target) => `<div class="back-row"><button class="back" data-go="${target}" aria-label="Back">‹</button></div>`;
+const back = (target) => `<div class="back-row"><button class="back" data-go="${target}" aria-label="Back">‹</button><span class="brand-mini">FolioCredit</span></div>`;
 const message = () => state.error ? `<div class="form-error" role="alert">${escapeHtml(state.error)}</div>` : "";
+const notice = () => state.notice ? `<div class="form-notice" role="status">${escapeHtml(state.notice)}</div>` : "";
 
 function welcome() {
   return shell(`<div class="welcome">
     <div class="welcome-main">
-      <div class="logo" aria-hidden="true">⌁</div>
-      <div class="mono product-label">Loan Against Mutual Funds</div>
-      <h1 class="hero-title">Access funds without redeeming your investments.</h1>
-      <p class="welcome-copy">Verify your mobile number, enter your portfolio value, and receive an instant eligibility estimate.</p>
+      <div class="logo" aria-hidden="true">FC</div>
+      <div class="mono product-label">FolioCredit</div>
+      <h1 class="hero-title">Your mutual funds can keep growing while you borrow.</h1>
+      <p class="welcome-copy">Start with your PAN. Holdings are accessed only after mobile verification and your explicit Account Aggregator consent.</p>
     </div>
-    <div class="welcome-bottom">
-      <div class="chips"><span>Secure OTP</span><span>Instant estimate</span><span>No obligation</span></div>
-      <button class="cta white" data-go="details">Check eligibility</button>
-      <p class="legal-light">Eligibility is indicative and subject to lender assessment, KYC, and scheme-level lending limits.</p>
+    <div class="welcome-bottom pan-start">
+      <label class="hero-field"><span>PAN number</span><input id="pan" autocomplete="off" autocapitalize="characters" value="${escapeHtml(state.pan)}" placeholder="ABCDE1234F" maxlength="10" required /></label>
+      <label class="consent consent-light"><input id="pan-consent" type="checkbox" ${state.panConsent ? "checked" : ""} required /><span>I consent to using my PAN and registered mobile to discover mutual-fund accounts for this eligibility check.</span></label>
+      ${message()}
+      <button class="cta white" id="continue-details" ${welcomeValid() ? "" : "disabled"}>Continue securely</button>
+      <p class="legal-light">PAN alone cannot reveal holdings. Final approval, pricing, and disbursal are provided only by a regulated lending partner.</p>
     </div>
   </div>`);
 }
 
 function details() {
-  const valid = detailsValid();
   return shell(`${back("welcome")}
     <div class="scroll content onboarding-content">
-      <div class="eyebrow">Eligibility check</div>
-      <h1 class="title">Tell us about you</h1>
-      <p class="sub">We use these details only to verify your number and calculate an estimate.</p>
+      <div class="eyebrow">Application details</div>
+      <h1 class="title">Tell us what you need</h1>
+      <p class="sub">Use the mobile number registered with your mutual-fund folios.</p>
       <form id="details-form" class="form-stack">
-        <label class="field"><span>Full name</span><input id="name" autocomplete="name" value="${escapeHtml(state.name)}" placeholder="As shown on PAN" maxlength="80" /></label>
-        <label class="field"><span>Mobile number</span><div class="phone-input"><b>+91</b><input id="mobile" autocomplete="tel-national" inputmode="numeric" value="${state.mobile}" placeholder="10-digit number" maxlength="10" /></div></label>
-        <label class="field"><span>Mutual fund portfolio value</span><input id="portfolio" inputmode="numeric" value="${state.portfolio}" aria-describedby="portfolio-hint" /></label>
-        <div id="portfolio-hint" class="hint">Enter the current approximate value across eligible mutual funds.</div>
-        <label class="field"><span>Desired loan amount</span><input id="amount" inputmode="numeric" value="${state.amount}" /></label>
-        <label class="consent"><input id="consent" type="checkbox" ${state.consent ? "checked" : ""} /><span>I consent to mobile verification and being contacted about this enquiry. I understand this is not a loan approval.</span></label>
+        <label class="field"><span>Full name</span><input id="name" autocomplete="name" value="${escapeHtml(state.name)}" placeholder="As shown on PAN" maxlength="80" required /></label>
+        <label class="field"><span>Registered mobile number</span><div class="phone-input"><b>+91</b><input id="mobile" autocomplete="tel-national" inputmode="numeric" value="${state.mobile}" placeholder="10-digit number" maxlength="10" required /></div></label>
+        <label class="field"><span>Desired loan amount</span><input id="amount" inputmode="numeric" value="${state.amount || ""}" placeholder="Minimum ₹25,000" required /></label>
+        <label class="consent"><input id="contact-consent" type="checkbox" ${state.contactConsent ? "checked" : ""} required /><span>I agree to mobile verification and to be contacted about this application.</span></label>
+        <label class="consent"><input id="portfolio-consent" type="checkbox" ${state.portfolioConsent ? "checked" : ""} required /><span>I request a one-time, consented fetch of my mutual-fund profile and current-value summary for loan eligibility.</span></label>
         ${message()}
       </form>
     </div>
-    <div class="bottom"><button class="cta" id="send-otp" ${valid && !state.loading ? "" : "disabled"}>${state.loading ? "Sending OTP…" : "Send OTP"}</button></div>`);
+    <div class="bottom"><button class="cta" id="send-otp" ${detailsValid() && !state.loading ? "" : "disabled"}>${state.loading ? "Sending OTP…" : "Verify mobile"}</button></div>`);
 }
 
 function otp() {
@@ -84,9 +97,9 @@ function otp() {
     <div class="scroll content onboarding-content">
       <div class="eyebrow">Mobile verification</div>
       <h1 class="title">Enter the OTP</h1>
-      <p class="sub">We sent a 6-digit code to +91 ${escapeHtml(state.mobile.slice(0, 2))}••••••${escapeHtml(state.mobile.slice(-2))}.</p>
+      <p class="sub">We sent a code to +91 ${escapeHtml(state.mobile.slice(0, 2))}••••••${escapeHtml(state.mobile.slice(-2))}.</p>
       <form id="otp-form" class="form-stack otp-form">
-        <label class="field"><span>One-time password</span><input id="otp" class="otp-input" autocomplete="one-time-code" inputmode="numeric" value="${state.otp}" placeholder="••••••" maxlength="6" /></label>
+        <label class="field"><span>One-time password</span><input id="otp" class="otp-input" autocomplete="one-time-code" inputmode="numeric" value="${state.otp}" placeholder="••••••" maxlength="6" required /></label>
         ${message()}
         <button type="button" class="text-action" id="resend-otp" ${state.loading ? "disabled" : ""}>Resend OTP</button>
       </form>
@@ -94,24 +107,54 @@ function otp() {
     <div class="bottom"><button class="cta" id="verify-otp" ${/^\d{6}$/.test(state.otp) && !state.loading ? "" : "disabled"}>${state.loading ? "Verifying…" : "Verify and continue"}</button></div>`);
 }
 
-function result() {
-  const maximum = estimate();
-  const withinEstimate = state.amount <= maximum;
+function connect() {
   return shell(`${back("details")}
     <div class="scroll content onboarding-content">
       <div class="verified-line"><span class="tick">✓</span> Mobile verified</div>
-      <h1 class="title">${withinEstimate ? "Your estimate is ready" : "Adjust your loan amount"}</h1>
+      <h1 class="title">Connect your mutual funds</h1>
+      <p class="sub">A regulated Account Aggregator will ask you to review the request, discover accounts using PAN and mobile, and choose what to share.</p>
+      <div class="connection-list">
+        <div><span>1</span><p><b>Review consent</b><small>One-time profile and current-value summary</small></p></div>
+        <div><span>2</span><p><b>Link eligible folios</b><small>Use PAN ${escapeHtml(maskedPan())} and your registered mobile</small></p></div>
+        <div><span>3</span><p><b>Calculate eligibility</b><small>Based only on data you approve</small></p></div>
+      </div>
+      <p class="disclosure">FolioCredit cannot access holdings without your approval. You can reject or revoke consent through the Account Aggregator.</p>
+      ${message()}
+    </div>
+    <div class="bottom"><button class="cta" id="connect-portfolio" ${state.loading ? "disabled" : ""}>${state.loading ? "Preparing consent…" : "Connect mutual funds"}</button></div>`);
+}
+
+function portfolioPending() {
+  return shell(`${back("connect")}
+    <div class="scroll content onboarding-content">
+      <div class="eyebrow">Portfolio connection</div>
+      <h1 class="title">Finish your secure connection</h1>
+      <p class="sub">After approving the Account Aggregator request, check again to retrieve the portfolio summary.</p>
+      <div class="status-panel"><span class="status-dot"></span><div><b>Consent reference</b><small>${escapeHtml(state.consentId || "Awaiting consent")}</small></div></div>
+      ${notice()}
+      ${message()}
+    </div>
+    <div class="bottom"><button class="cta" id="check-portfolio" ${state.loading ? "disabled" : ""}>${state.loading ? "Checking portfolio…" : "Check portfolio"}</button></div>`);
+}
+
+function result() {
+  const maximum = estimate();
+  const withinEstimate = state.amount <= maximum;
+  return shell(`${back("portfolioPending")}
+    <div class="scroll content onboarding-content">
+      <div class="verified-line"><span class="tick">✓</span> Consented portfolio received</div>
+      <h1 class="title">${withinEstimate ? "Your estimate is ready" : "Requested amount is above the estimate"}</h1>
       <div class="estimate-panel">
         <span>Indicative maximum</span>
         <strong>${inr(maximum)}</strong>
-        <small>Based on 50% of the portfolio value entered</small>
+        <small>Conservative 50% estimate before scheme-level lender haircuts</small>
       </div>
       <div class="summary-list">
-        <div><span>Applicant</span><b>${escapeHtml(state.name)}</b></div>
-        <div><span>Portfolio value</span><b>${inr(state.portfolio)}</b></div>
+        <div><span>Portfolio current value</span><b>${inr(state.portfolio)}</b></div>
+        <div><span>Connected accounts</span><b>${state.holdings.length}</b></div>
         <div><span>Requested amount</span><b class="${withinEstimate ? "" : "warning-text"}">${inr(state.amount)}</b></div>
       </div>
-      <p class="disclosure">This estimate is not a sanction or offer. Final eligibility depends on KYC, credit checks, eligible schemes, current NAV, lender policy, and executed loan documents.</p>
+      <p class="disclosure">This is not a sanction or loan offer. Eligible schemes, final LTV, KYC, credit policy, lien creation, pricing, and disbursal are determined by the lending partner.</p>
       ${message()}
     </div>
     <div class="bottom"><button class="cta" id="submit-enquiry" ${withinEstimate && !state.loading ? "" : "disabled"}>${state.loading ? "Submitting…" : withinEstimate ? "Request a callback" : "Amount exceeds estimate"}</button></div>`);
@@ -121,11 +164,12 @@ function submitted() {
   return shell(`<div class="success simple-success">
     <div class="success-main">
       <div class="success-badge"><i>✓</i></div>
-      <h1>Enquiry received</h1>
-      <p>Thanks, ${escapeHtml(state.name)}. A lending representative can now contact you on your verified mobile number.</p>
-      <div class="reference">Reference <b>LAMF-${Date.now().toString().slice(-8)}</b></div>
+      <div class="mono product-label">FolioCredit</div>
+      <h1>Application received</h1>
+      <p>Thanks, ${escapeHtml(state.name)}. A lending representative can contact you on your verified mobile number.</p>
+      <div class="reference">Reference <b>FC-${Date.now().toString().slice(-8)}</b></div>
     </div>
-    <div class="welcome-bottom"><button class="cta white" data-go="welcome">Start another enquiry</button></div>
+    <div class="welcome-bottom"><button class="cta white" id="restart">Start another application</button></div>
   </div>`);
 }
 
@@ -154,7 +198,63 @@ async function verifyOtp() {
   setState({ loading: true, error: "" });
   try {
     const result = await api("/.netlify/functions/verify-otp", { phone: phone(), code: state.otp });
-    setState({ screen: "result", loading: false, error: "", verificationToken: result.verificationToken });
+    setState({ screen: "connect", loading: false, error: "", verificationToken: result.verificationToken });
+  } catch (error) {
+    setState({ loading: false, error: error.message });
+  }
+}
+
+function persistJourney() {
+  sessionStorage.setItem("folioCreditJourney", JSON.stringify({
+    pan: state.pan,
+    name: state.name,
+    mobile: state.mobile,
+    amount: state.amount,
+    contactConsent: state.contactConsent,
+    portfolioConsent: state.portfolioConsent,
+    verificationToken: state.verificationToken,
+    consentId: state.consentId,
+    sessionId: state.sessionId
+  }));
+}
+
+async function connectPortfolio() {
+  setState({ loading: true, error: "" });
+  try {
+    const result = await api("/.netlify/functions/start-portfolio-consent", {
+      pan: state.pan,
+      phone: phone(),
+      verificationToken: state.verificationToken
+    });
+    setState({ consentId: result.consentId, loading: false }, false);
+    persistJourney();
+    window.location.assign(result.consentUrl);
+  } catch (error) {
+    setState({ loading: false, error: error.message });
+  }
+}
+
+async function checkPortfolio() {
+  setState({ loading: true, error: "", notice: "" });
+  try {
+    const result = await api("/.netlify/functions/fetch-portfolio", {
+      pan: state.pan,
+      phone: phone(),
+      verificationToken: state.verificationToken,
+      consentId: state.consentId,
+      sessionId: state.sessionId
+    });
+    if (result.status === "READY") {
+      sessionStorage.removeItem("folioCreditJourney");
+      setState({ screen: "result", loading: false, portfolio: result.portfolioValue, holdings: result.holdings });
+      return;
+    }
+    setState({
+      loading: false,
+      sessionId: result.sessionId || state.sessionId,
+      notice: result.status === "PENDING_CONSENT" ? "Approve the consent request, then check again." : "Your portfolio is being prepared. Check again shortly."
+    });
+    persistJourney();
   } catch (error) {
     setState({ loading: false, error: error.message });
   }
@@ -166,8 +266,10 @@ async function submitEnquiry() {
     await api("/.netlify/functions/submit-enquiry", {
       name: state.name.trim(),
       phone: phone(),
+      panLast4: state.pan.slice(-4),
       portfolio: state.portfolio,
       amount: state.amount,
+      consentId: state.consentId,
       verificationToken: state.verificationToken
     });
     setState({ screen: "submitted", loading: false });
@@ -176,48 +278,76 @@ async function submitEnquiry() {
   }
 }
 
-const renderers = { welcome, details, otp, result, submitted };
+const renderers = { welcome, details, otp, connect, portfolioPending, result, submitted };
 
 function render() {
   document.getElementById("app").innerHTML = renderers[state.screen]();
   bind();
 }
 
+function bindCheckbox(id, key) {
+  const input = document.getElementById(id);
+  if (!input) return;
+  input.addEventListener("change", (event) => {
+    setState({ [key]: event.target.checked, error: "" }, false);
+    updateActionState();
+  });
+}
+
 function bind() {
   document.querySelectorAll("[data-go]").forEach((element) => element.addEventListener("click", () => go(element.dataset.go)));
   const fields = {
+    pan: (value) => value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 10),
     name: (value) => value.slice(0, 80),
     mobile: (value) => value.replace(/\D/g, "").slice(0, 10),
-    portfolio: (value) => Math.max(0, Number(value.replace(/\D/g, "")) || 0),
     amount: (value) => Math.max(0, Number(value.replace(/\D/g, "")) || 0),
     otp: (value) => value.replace(/\D/g, "").slice(0, 6)
   };
   Object.entries(fields).forEach(([id, normalize]) => {
     const input = document.getElementById(id);
-    if (input) input.addEventListener("input", (event) => {
+    if (!input) return;
+    input.addEventListener("input", (event) => {
       const value = normalize(event.target.value);
-      event.target.value = value;
+      event.target.value = value || "";
       setState({ [id]: value, error: "" }, false);
       updateActionState();
     });
   });
-  const consent = document.getElementById("consent");
-  if (consent) consent.addEventListener("change", (event) => {
-    setState({ consent: event.target.checked, error: "" }, false);
-    updateActionState();
-  });
+  bindCheckbox("pan-consent", "panConsent");
+  bindCheckbox("contact-consent", "contactConsent");
+  bindCheckbox("portfolio-consent", "portfolioConsent");
+  document.getElementById("continue-details")?.addEventListener("click", () => go("details"));
   document.getElementById("send-otp")?.addEventListener("click", sendOtp);
   document.getElementById("resend-otp")?.addEventListener("click", sendOtp);
   document.getElementById("verify-otp")?.addEventListener("click", verifyOtp);
+  document.getElementById("connect-portfolio")?.addEventListener("click", connectPortfolio);
+  document.getElementById("check-portfolio")?.addEventListener("click", checkPortfolio);
   document.getElementById("submit-enquiry")?.addEventListener("click", submitEnquiry);
+  document.getElementById("restart")?.addEventListener("click", () => {
+    sessionStorage.removeItem("folioCreditJourney");
+    window.location.assign(window.location.pathname);
+  });
 }
 
 function updateActionState() {
+  const continueButton = document.getElementById("continue-details");
+  if (continueButton) continueButton.disabled = !welcomeValid() || state.loading;
   const sendButton = document.getElementById("send-otp");
   if (sendButton) sendButton.disabled = !detailsValid() || state.loading;
-
   const verifyButton = document.getElementById("verify-otp");
   if (verifyButton) verifyButton.disabled = !/^\d{6}$/.test(state.otp) || state.loading;
 }
 
+function restoreJourney() {
+  if (!new URLSearchParams(window.location.search).has("portfolio")) return;
+  try {
+    const saved = JSON.parse(sessionStorage.getItem("folioCreditJourney") || "null");
+    if (!saved?.consentId || !saved?.verificationToken) return;
+    Object.assign(state, saved, { screen: "portfolioPending" });
+  } catch {
+    sessionStorage.removeItem("folioCreditJourney");
+  }
+}
+
+restoreJourney();
 render();
