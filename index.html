@@ -4,13 +4,24 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#0a3d39" />
-    <title>LAMF Mobile App</title>
+    <meta name="description" content="Verify your mobile number and receive an indicative loan-against-mutual-funds eligibility estimate." />
+    <meta property="og:title" content="LAMF Eligibility" />
+    <meta property="og:description" content="Check an indicative loan-against-mutual-funds eligibility estimate." />
+    <meta property="og:type" content="website" />
+    <title>LAMF Eligibility</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
+    <form name="loan-enquiry" netlify hidden>
+      <input name="name" />
+      <input name="phone" />
+      <input name="portfolio" />
+      <input name="amount" />
+      <input name="verified" />
+    </form>
     <main id="app" aria-live="polite"></main>
     <script src="app.js" type="module"></script>
   </body>
