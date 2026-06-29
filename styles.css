@@ -275,6 +275,24 @@ input[type="range"] { width: 100%; accent-color: var(--brand); cursor: pointer; 
 .status-panel small { overflow-wrap: anywhere; color: var(--muted); }
 .status-dot { width: 10px; height: 10px; border-radius: 999px; background: #d9992b; box-shadow: 0 0 0 5px #f7ead2; flex: none; }
 .form-notice { margin-top: 18px; padding: 11px 12px; border-left: 3px solid var(--brand); border-radius: 0 8px 8px 0; color: var(--brand-dark); background: var(--brand-tint); font-size: 13px; line-height: 1.4; }
+.field-label { color: var(--muted); font-size: 12px; font-weight: 700; }
+.loan-selector { margin-top: 22px; padding: 20px 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.loan-selector .amount-live { color: var(--ink); font-size: 36px; }
+.risk-block { margin-top: 22px; }
+.risk-block h2 { margin: 0; font-size: 17px; }
+.risk-block ul { margin: 12px 0 18px; padding-left: 20px; color: var(--muted); font-size: 12.5px; line-height: 1.55; }
+.risk-block li + li { margin-top: 6px; }
+.lifecycle-screen { padding-top: 66px; padding-bottom: 34px; }
+.reference-light { display: inline-flex; gap: 6px; margin-top: 20px; color: var(--muted); border-color: var(--line); background: #fff; }
+.lifecycle-list { margin-top: 24px; border-top: 1px solid var(--line); }
+.lifecycle-list > div { display: flex; gap: 13px; align-items: flex-start; padding: 14px 0; border-bottom: 1px solid var(--line); color: var(--muted); }
+.lifecycle-list i { width: 28px; height: 28px; border-radius: 999px; display: grid; place-items: center; flex: none; border: 1px solid #cbd3e0; background: #fff; color: var(--muted); font-size: 12px; font-weight: 800; font-style: normal; }
+.lifecycle-list p { display: flex; flex-direction: column; gap: 3px; margin: 1px 0 0; }
+.lifecycle-list b { color: var(--ink); font-size: 14px; }
+.lifecycle-list small { font-size: 12px; line-height: 1.4; }
+.lifecycle-list .done i { border-color: var(--positive); background: var(--positive); color: #fff; }
+.lifecycle-list .current i { border-color: #d9992b; background: #f7ead2; color: #8a5b0b; }
+.lifecycle-screen > .cta { margin-top: 24px; }
 
 @keyframes pop { 0% { transform: scale(.6); opacity: 0; } 60% { transform: scale(1.08); } 100% { transform: scale(1); opacity: 1; } }
 @keyframes bar { from { width: 0; } }

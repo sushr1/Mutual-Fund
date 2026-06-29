@@ -39,6 +39,6 @@ export async function twilioVerify(path, form) {
 }
 
 export function handleError(error) {
-  console.error("OTP function error", { message: error.message, status: error.status });
+  console.error("Function error", { message: error.message, status: error.status });
   return json({ error: error.message || "Something went wrong." }, error.status || 500);
 }

@@ -1,9 +1,14 @@
 import { json } from "./_shared/twilio-verify.mjs";
-import { verifyVerificationToken } from "./_shared/verification-token.mjs";
+import { createPortfolioToken, verifyVerificationToken } from "./_shared/verification-token.mjs";
 import { setuRequest } from "./_shared/setu.mjs";
 
 const panPattern = /^[A-Z]{5}[0-9]{4}[A-Z]$/;
 const phonePattern = /^\+91[6-9]\d{9}$/;
+
+function eligibilityLtv() {
+  const configured = Number(globalThis.Netlify?.env?.get("ELIGIBILITY_MAX_LTV") || process.env.ELIGIBILITY_MAX_LTV || 0.5);
+  return Math.min(0.6, Math.max(0.1, Number.isFinite(configured) ? configured : 0.5));
+}
 
 function accountPayload(item) {
   return item?.data?.account
@@ -75,7 +80,19 @@ export default async (request) => {
     const status = String(portfolio.status || "").toUpperCase();
     if (status === "PENDING") return json({ status: "PREPARING", sessionId });
     if (status !== "PARTIAL" && status !== "COMPLETED") throw Object.assign(new Error("Portfolio data is not available for this session."), { status: 409 });
-    return json({ status: "READY", ...portfolioSummary(portfolio, pan) });
+    const summary = portfolioSummary(portfolio, pan);
+    const ltv = eligibilityLtv();
+    const maxEligible = Math.floor((summary.portfolioValue * ltv) / 1000) * 1000;
+    const portfolioToken = await createPortfolioToken({
+      phone,
+      panSuffix: pan.slice(-4),
+      consentId,
+      portfolioValue: summary.portfolioValue,
+      holdingsCount: summary.holdings.length,
+      ltv,
+      maxEligible
+    });
+    return json({ status: "READY", ...summary, ltv, maxEligible, portfolioToken });
   } catch (error) {
     console.error("Portfolio fetch error", { message: error.message, status: error.status });
     return json({ error: error.message || "Something went wrong." }, error.status || 500);

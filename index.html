@@ -12,19 +12,28 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="styles.css?v=2" />
+    <link rel="stylesheet" href="styles.css?v=3" />
   </head>
   <body>
-    <form name="loan-enquiry" netlify hidden>
+    <form name="loan-application" netlify hidden>
+      <input name="applicationId" />
+      <input name="state" />
       <input name="name" />
+      <input name="email" />
       <input name="phone" />
       <input name="panLast4" />
       <input name="consentId" />
       <input name="portfolio" />
+      <input name="holdingsCount" />
+      <input name="maxEligible" />
+      <input name="ltv" />
       <input name="amount" />
-      <input name="verified" />
+      <input name="riskAcknowledged" />
+      <input name="mobileVerified" />
+      <input name="portfolioVerified" />
+      <input name="submittedAt" />
     </form>
     <main id="app" aria-live="polite"></main>
-    <script src="app.js?v=2" type="module"></script>
+    <script src="app.js?v=3" type="module"></script>
   </body>
 </html>

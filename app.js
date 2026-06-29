@@ -3,6 +3,7 @@ const defaultState = {
   pan: "",
   panConsent: false,
   name: "",
+  email: "",
   mobile: "",
   amount: 0,
   contactConsent: false,
@@ -13,6 +14,12 @@ const defaultState = {
   sessionId: "",
   portfolio: 0,
   holdings: [],
+  maxEligible: 0,
+  ltv: 0,
+  portfolioToken: "",
+  selectedAmount: 0,
+  riskAcknowledged: false,
+  applicationId: "",
   loading: false,
   error: "",
   notice: ""
@@ -23,11 +30,11 @@ const panPattern = /^[A-Z]{5}[0-9]{4}[A-Z]$/;
 const mobilePattern = /^[6-9]\d{9}$/;
 const inr = (value) => `₹${Math.round(value).toLocaleString("en-IN")}`;
 const phone = () => `+91${state.mobile}`;
-const estimate = () => Math.round(state.portfolio * 0.5);
 const welcomeValid = () => panPattern.test(state.pan) && state.panConsent;
 const detailsValid = () => state.name.trim().length >= 2
+  && /^\S+@\S+\.\S+$/.test(state.email)
   && mobilePattern.test(state.mobile)
-  && state.amount >= 25000
+  && state.amount >= 50000
   && state.contactConsent
   && state.portfolioConsent;
 const escapeHtml = (value) => String(value).replace(/[&<>'"]/g, (character) => ({
@@ -82,8 +89,9 @@ function details() {
       <p class="sub">Use the mobile number registered with your mutual-fund folios.</p>
       <form id="details-form" class="form-stack">
         <label class="field"><span>Full name</span><input id="name" autocomplete="name" value="${escapeHtml(state.name)}" placeholder="As shown on PAN" maxlength="80" required /></label>
+        <label class="field"><span>Email address</span><input id="email" type="email" autocomplete="email" value="${escapeHtml(state.email)}" placeholder="name@example.com" maxlength="120" required /></label>
         <label class="field"><span>Registered mobile number</span><div class="phone-input"><b>+91</b><input id="mobile" autocomplete="tel-national" inputmode="numeric" value="${state.mobile}" placeholder="10-digit number" maxlength="10" required /></div></label>
-        <label class="field"><span>Desired loan amount</span><input id="amount" inputmode="numeric" value="${state.amount || ""}" placeholder="Minimum ₹25,000" required /></label>
+        <label class="field"><span>Desired loan amount</span><input id="amount" inputmode="numeric" value="${state.amount || ""}" placeholder="Minimum ₹50,000" required /></label>
         <label class="consent"><input id="contact-consent" type="checkbox" ${state.contactConsent ? "checked" : ""} required /><span>I agree to mobile verification and to be contacted about this application.</span></label>
         <label class="consent"><input id="portfolio-consent" type="checkbox" ${state.portfolioConsent ? "checked" : ""} required /><span>I request a one-time, consented fetch of my mutual-fund profile and current-value summary for loan eligibility.</span></label>
         ${message()}
@@ -138,38 +146,58 @@ function portfolioPending() {
 }
 
 function result() {
-  const maximum = estimate();
-  const withinEstimate = state.amount <= maximum;
+  const eligible = state.maxEligible >= 50000;
   return shell(`${back("portfolioPending")}
     <div class="scroll content onboarding-content">
       <div class="verified-line"><span class="tick">✓</span> Consented portfolio received</div>
-      <h1 class="title">${withinEstimate ? "Your estimate is ready" : "Requested amount is above the estimate"}</h1>
+      <h1 class="title">${eligible ? "Choose your loan amount" : "Portfolio below current lending threshold"}</h1>
       <div class="estimate-panel">
-        <span>Indicative maximum</span>
-        <strong>${inr(maximum)}</strong>
-        <small>Conservative 50% estimate before scheme-level lender haircuts</small>
+        <span>Indicative drawing power</span>
+        <strong>${inr(state.maxEligible)}</strong>
+        <small>${Math.round(state.ltv * 100)}% policy LTV before scheme-level lender haircuts</small>
       </div>
       <div class="summary-list">
         <div><span>Portfolio current value</span><b>${inr(state.portfolio)}</b></div>
         <div><span>Connected accounts</span><b>${state.holdings.length}</b></div>
-        <div><span>Requested amount</span><b class="${withinEstimate ? "" : "warning-text"}">${inr(state.amount)}</b></div>
       </div>
-      <p class="disclosure">This is not a sanction or loan offer. Eligible schemes, final LTV, KYC, credit policy, lien creation, pricing, and disbursal are determined by the lending partner.</p>
+      ${eligible ? `<section class="loan-selector" aria-labelledby="loan-amount-label">
+        <div id="loan-amount-label" class="field-label">Selected loan amount</div>
+        <div class="amount-live" id="selected-amount">${inr(state.selectedAmount)}</div>
+        <input id="loan-amount" type="range" min="50000" max="${state.maxEligible}" step="5000" value="${state.selectedAmount}" aria-label="Selected loan amount" />
+        <div class="range-limits"><span>${inr(50000)}</span><span>${inr(state.maxEligible)}</span></div>
+      </section>
+      <section class="risk-block" aria-labelledby="risk-title">
+        <h2 id="risk-title">Before you apply</h2>
+        <ul>
+          <li>Mutual-fund values and drawing power can fall.</li>
+          <li>A margin call may require repayment or more collateral.</li>
+          <li>Failure to cure a shortfall may lead to liquidation of pledged units.</li>
+          <li>Interest continues until the lender records repayment.</li>
+        </ul>
+        <label class="consent"><input id="risk-acknowledged" type="checkbox" ${state.riskAcknowledged ? "checked" : ""} required /><span>I understand these risks. This is an application, not a sanction or disbursal.</span></label>
+      </section>` : ""}
+      <p class="disclosure">The regulated lender must complete KYC, bank verification, underwriting, scheme eligibility, KFS and APR disclosure, lien confirmation, and executed documents before disbursal.</p>
       ${message()}
     </div>
-    <div class="bottom"><button class="cta" id="submit-enquiry" ${withinEstimate && !state.loading ? "" : "disabled"}>${state.loading ? "Submitting…" : withinEstimate ? "Request a callback" : "Amount exceeds estimate"}</button></div>`);
+    <div class="bottom"><button class="cta" id="submit-enquiry" ${eligible && state.riskAcknowledged && !state.loading ? "" : "disabled"}>${state.loading ? "Creating application…" : eligible ? "Create application" : "Not currently eligible"}</button></div>`);
 }
 
 function submitted() {
-  return shell(`<div class="success simple-success">
-    <div class="success-main">
-      <div class="success-badge"><i>✓</i></div>
-      <div class="mono product-label">FolioCredit</div>
-      <h1>Application received</h1>
-      <p>Thanks, ${escapeHtml(state.name)}. A lending representative can contact you on your verified mobile number.</p>
-      <div class="reference">Reference <b>FC-${Date.now().toString().slice(-8)}</b></div>
+  return shell(`<div class="scroll content lifecycle-screen">
+    <div class="verified-line"><span class="tick">✓</span> Application created</div>
+    <h1 class="title">We have recorded your request</h1>
+    <p class="sub">No loan has been sanctioned yet. Your regulated lending partner must complete the remaining checks.</p>
+    <div class="reference reference-light">Reference <b>${escapeHtml(state.applicationId)}</b></div>
+    <div class="lifecycle-list">
+      <div class="done"><i>✓</i><p><b>Mobile verified</b><small>Completed</small></p></div>
+      <div class="done"><i>✓</i><p><b>Portfolio fetched</b><small>Completed with Account Aggregator consent</small></p></div>
+      <div class="current"><i>3</i><p><b>KYC and bank verification</b><small>Pending regulated partner journey</small></p></div>
+      <div><i>4</i><p><b>Credit decision and KFS</b><small>Pending lender approval and pricing</small></p></div>
+      <div><i>5</i><p><b>Lien, agreement and eSign</b><small>Pending customer authorization</small></p></div>
+      <div><i>6</i><p><b>Disbursal</b><small>Only after all preceding stages complete</small></p></div>
     </div>
-    <div class="welcome-bottom"><button class="cta white" id="restart">Start another application</button></div>
+    <p class="disclosure">After disbursal, daily NAV-based drawing power, repayment, margin alerts, closure, and lien release belong in the servicing dashboard supplied by the lending partner.</p>
+    <button class="cta" id="restart">Start another application</button>
   </div>`);
 }
 
@@ -208,6 +236,7 @@ function persistJourney() {
   sessionStorage.setItem("folioCreditJourney", JSON.stringify({
     pan: state.pan,
     name: state.name,
+    email: state.email,
     mobile: state.mobile,
     amount: state.amount,
     contactConsent: state.contactConsent,
@@ -246,7 +275,17 @@ async function checkPortfolio() {
     });
     if (result.status === "READY") {
       sessionStorage.removeItem("folioCreditJourney");
-      setState({ screen: "result", loading: false, portfolio: result.portfolioValue, holdings: result.holdings });
+      const selectedAmount = Math.max(50000, Math.min(state.amount, result.maxEligible));
+      setState({
+        screen: "result",
+        loading: false,
+        portfolio: result.portfolioValue,
+        holdings: result.holdings,
+        maxEligible: result.maxEligible,
+        ltv: result.ltv,
+        portfolioToken: result.portfolioToken,
+        selectedAmount
+      });
       return;
     }
     setState({
@@ -263,16 +302,18 @@ async function checkPortfolio() {
 async function submitEnquiry() {
   setState({ loading: true, error: "" });
   try {
-    await api("/.netlify/functions/submit-enquiry", {
+    const result = await api("/.netlify/functions/submit-enquiry", {
       name: state.name.trim(),
+      email: state.email.trim(),
       phone: phone(),
       panLast4: state.pan.slice(-4),
-      portfolio: state.portfolio,
-      amount: state.amount,
+      amount: state.selectedAmount,
       consentId: state.consentId,
-      verificationToken: state.verificationToken
+      verificationToken: state.verificationToken,
+      portfolioToken: state.portfolioToken,
+      riskAcknowledged: state.riskAcknowledged
     });
-    setState({ screen: "submitted", loading: false });
+    setState({ screen: "submitted", loading: false, applicationId: result.applicationId });
   } catch (error) {
     setState({ loading: false, error: error.message });
   }
@@ -299,6 +340,7 @@ function bind() {
   const fields = {
     pan: (value) => value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 10),
     name: (value) => value.slice(0, 80),
+    email: (value) => value.trim().slice(0, 120),
     mobile: (value) => value.replace(/\D/g, "").slice(0, 10),
     amount: (value) => Math.max(0, Number(value.replace(/\D/g, "")) || 0),
     otp: (value) => value.replace(/\D/g, "").slice(0, 6)
@@ -316,6 +358,7 @@ function bind() {
   bindCheckbox("pan-consent", "panConsent");
   bindCheckbox("contact-consent", "contactConsent");
   bindCheckbox("portfolio-consent", "portfolioConsent");
+  bindCheckbox("risk-acknowledged", "riskAcknowledged");
   document.getElementById("continue-details")?.addEventListener("click", () => go("details"));
   document.getElementById("send-otp")?.addEventListener("click", sendOtp);
   document.getElementById("resend-otp")?.addEventListener("click", sendOtp);
@@ -323,6 +366,12 @@ function bind() {
   document.getElementById("connect-portfolio")?.addEventListener("click", connectPortfolio);
   document.getElementById("check-portfolio")?.addEventListener("click", checkPortfolio);
   document.getElementById("submit-enquiry")?.addEventListener("click", submitEnquiry);
+  const loanAmount = document.getElementById("loan-amount");
+  if (loanAmount) loanAmount.addEventListener("input", (event) => {
+    const selectedAmount = Number(event.target.value);
+    setState({ selectedAmount }, false);
+    document.getElementById("selected-amount").textContent = inr(selectedAmount);
+  });
   document.getElementById("restart")?.addEventListener("click", () => {
     sessionStorage.removeItem("folioCreditJourney");
     window.location.assign(window.location.pathname);
@@ -336,6 +385,8 @@ function updateActionState() {
   if (sendButton) sendButton.disabled = !detailsValid() || state.loading;
   const verifyButton = document.getElementById("verify-otp");
   if (verifyButton) verifyButton.disabled = !/^\d{6}$/.test(state.otp) || state.loading;
+  const submitButton = document.getElementById("submit-enquiry");
+  if (submitButton) submitButton.disabled = state.maxEligible < 50000 || !state.riskAcknowledged || state.loading;
 }
 
 function restoreJourney() {
